@@ -15,14 +15,25 @@ app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html');
 });
 
+let rooms = {}; // { 'roomNumber': ['player1', 'player2', ...], ... }
+
 io.on('connection', (socket) => {
     console.log('a user connected');
 
     // 当用户想要加入一个房间时
-    socket.on('joinRoom', (roomNumber) => {
+    socket.on('joinRoom', (roomNumber, playerName) => {
         socket.join(roomNumber);
-        console.log(`user ${socket.id} joined room: ${roomNumber}`);
+        
+        if (!rooms[roomNumber]) {
+            rooms[roomNumber] = [];
+        }
+        rooms[roomNumber].push(playerName);
+
+        // 通知房间内的所有玩家
+        io.to(roomNumber).emit('updatePlayers', rooms[roomNumber]);
     });
+
+    // 你还可以添加离开房间、断开连接等逻辑...
 
     // 当用户想要离开一个房间时
     socket.on('leaveRoom', (roomNumber) => {

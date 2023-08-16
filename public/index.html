@@ -7,8 +7,14 @@
     <!-- 其他头部元素，如CSS引用... -->
 </head>
 <body>
-    
-    <!-- 输入房间名的部分 -->
+
+    <!-- 输入昵称的部分 -->
+    <div>
+        <label for="playerNameInput">Enter Your Nickname:</label>
+        <input type="text" id="playerNameInput" placeholder="Nickname">
+    </div>
+
+    <!-- 输入房间号的部分 -->
     <div>
         <label for="roomNumberInput">Enter Room Number:</label>
         <input type="text" id="roomNumberInput" placeholder="Room Number">
@@ -17,8 +23,8 @@
     <!-- 加入房间按钮 -->
     <button id="joinRoom">Join Room</button>
 
-    <!-- 开始游戏按钮 -->
-    <button id="startGame">Start Game</button>
+    <!-- 房间内的玩家列表 -->
+    <div id="playerList"></div>
 
     <!-- 引入你的JS脚本，确保在<body>标签的最后引入，这样在脚本执行时HTML元素已经加载完成 -->
     <script src="/socket.io/socket.io.js"></script>
