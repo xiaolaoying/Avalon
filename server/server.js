@@ -40,7 +40,7 @@ function getRolesByPlayerCount(playerCount) {
             assignedRoles = [r.roleDefs[r.roles.MEILIN], r.roleDefs[r.roles.PAIXI], r.roleDefs[r.roles.ZHONGCHEN], r.roleDefs[r.roles.ZHONGCHEN], r.roleDefs[r.roles.ZHONGCHEN], r.roleDefs[r.roles.ZHONGCHEN], r.roleDefs[r.roles.MOGANNA], r.roleDefs[r.roles.CIKE], r.roleDefs[r.roles.HEILAODA]]; // 梅林, 派西维尔, 忠臣*4, 莫甘娜, 刺客, 莫德雷德
             break;
         case 10:
-            assignedRoles = [r.roleDefs[r.roles.MEILIN], r.roleDefs[r.roles.PAIXI], r.roleDefs[r.roles.ZHONGCHEN], r.roleDefs[r.roles.ZHONGCHEN], r.roleDefs[r.roles.ZHONGCHEN], r.roleDefs[r.roles.ZHONGCHEN], r.roleDefs[r.roles.MOGANNA], r.roleDefs[r.roles.CIKE], r.roleDefs[r.roles.HEILAODA], r.roleDefs[r.roles.AOBOLUN]]; // 梅林, 派西维尔, 忠臣*3, 莫甘娜, 刺客, 爪牙
+            assignedRoles = [r.roleDefs[r.roles.MEILIN], r.roleDefs[r.roles.PAIXI], r.roleDefs[r.roles.ZHONGCHEN], r.roleDefs[r.roles.ZHONGCHEN], r.roleDefs[r.roles.ZHONGCHEN], r.roleDefs[r.roles.ZHONGCHEN], r.roleDefs[r.roles.MOGANNA], r.roleDefs[r.roles.CIKE], r.roleDefs[r.roles.HEILAODA], r.roleDefs[r.roles.AOBOLUN]]; // 梅林, 派西维尔, 忠臣*4, 莫甘娜, 刺客, 莫德雷德, 奥伯伦
             break;
         default:
             console.error("Unsupported player count.");
@@ -99,15 +99,27 @@ io.on('connection', (socket) => {
         // 通知房间内的所有玩家
         io.to(roomNumber).emit('updatePlayers', playerNames);
     });
-    
-
-    // 你还可以添加离开房间、断开连接等逻辑...
 
     // 当用户想要离开一个房间时
-    socket.on('leaveRoom', (roomNumber) => {
+    socket.on('leaveRoom', (roomNumber, playerName) => {
+        // 查找玩家在房间中的索引
+        const playerIndex = rooms[roomNumber].findIndex(player => player.name === playerName);
+    
+        // 如果玩家存在于房间中，移除他
+        if (playerIndex > -1) {
+            rooms[roomNumber].splice(playerIndex, 1);
+        }
+    
+        // 从房间数据中提取玩家名称列表，以便发送给客户端
+        const playerNames = rooms[roomNumber].map(player => player.name);
+    
+        // 广播更新后的玩家列表
+        io.to(roomNumber).emit('updatePlayers', playerNames);
+    
+        // 让该玩家离开这个socket房间
         socket.leave(roomNumber);
-        console.log(`user ${socket.id} left room: ${roomNumber}`);
     });
+    
 
     // 当游戏开始事件被触发时，只发送给特定房间的用户
     socket.on('startGame', (roomNumber) => {
@@ -122,7 +134,7 @@ io.on('connection', (socket) => {
 
         players.forEach((player, index) => {
             const role = shuffledRoles[index];
-            io.to(player.id).emit('receiveRole', role.name, role.canSeeDesc, getCanSee(role.canSee, shuffledRoles));
+            io.to(player.id).emit('receiveRole', role.name, role.canSeeDesc, getCanSee(role.canSee, shuffledRoles).map(index => players[index].name));
         });
 
         io.to(roomNumber).emit('gameStarted');
