@@ -14,7 +14,18 @@ socket.on('updatePlayers', (players) => {
 
     players.forEach(player => {
         const playerDiv = document.createElement('div');
-        playerDiv.textContent = player;
+        const playerCheckbox = document.createElement('input');
+        playerCheckbox.type = 'checkbox';
+        playerCheckbox.value = player;
+        playerCheckbox.id = 'player-' + player;
+        // playerCheckbox.disabled = !isCaptainTurn; // 如果不是队长的轮次则禁用复选框
+
+        const playerLabel = document.createElement('label');
+        playerLabel.htmlFor = 'player-' + player;
+        playerLabel.textContent = player;
+
+        playerDiv.appendChild(playerCheckbox);
+        playerDiv.appendChild(playerLabel);
         playerListDiv.appendChild(playerDiv);
     });
 });
@@ -61,3 +72,69 @@ document.getElementById('startGame').addEventListener('click', () => {
     socket.emit('startGame', roomNumber);
 });
 
+// // 当轮到队长选择玩家组队时
+// socket.on('captainTurn', () => {
+//     isCaptainTurn = true; // 标记为队长的轮次
+//     const checkboxes = playerListDiv.querySelectorAll('input[type="checkbox"]');
+//     checkboxes.forEach(checkbox => {
+//         checkbox.disabled = false; // 启用所有复选框
+//     });
+//     confirmTeamButton.style.display = 'block';  // 显示确认按钮
+// });
+
+document.getElementById('confirmTeam').addEventListener('click', () => {
+    playerListDiv = document.getElementById('playerList');
+    // console.log('confirmTeam');
+    const selectedTeam = [];
+    const checkboxes = playerListDiv.querySelectorAll('input[type="checkbox"]');
+
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            selectedTeam.push(checkbox.value);
+        }
+    });
+
+    if (selectedTeam.length) {
+        socket.emit('teamSelected', selectedTeam);
+        // isCaptainTurn = false; // 清除队长轮次标记
+        // confirmTeamButton.style.display = 'none'; // 隐藏确认按钮
+        // checkboxes.forEach(checkbox => {
+        //     checkbox.disabled = true; // 禁用所有复选框
+        // });
+    } else {
+        alert('你需要选择至少一个玩家！');
+    }
+});
+
+// 监听 'error' 事件
+socket.on('error', (errorMsg) => {
+    alert(errorMsg); // 使用alert来显示错误信息
+});
+
+// 当收到队伍名单时
+socket.on('teamAnnounced', (selectedTeam) => {
+    // console.log('teamAnnounced');
+    const teamAnnounceDiv = document.getElementById('teamAnnounced');
+    teamAnnounceDiv.textContent = `队长选择了以下玩家组队: ${selectedTeam.join(', ')}`;
+
+    const approveButton = document.createElement('button');
+    approveButton.textContent = '赞成';
+    approveButton.addEventListener('click', () => {
+        socket.emit('vote', 'approve');
+        // 在投票后，你可以选择隐藏或禁用投票按钮
+        approveButton.disabled = true;
+        opposeButton.disabled = true;
+    });
+
+    const opposeButton = document.createElement('button');
+    opposeButton.textContent = '反对';
+    opposeButton.addEventListener('click', () => {
+        socket.emit('vote', 'oppose');
+        // 在投票后，你可以选择隐藏或禁用投票按钮
+        approveButton.disabled = true;
+        opposeButton.disabled = true;
+    });
+
+    document.body.appendChild(approveButton);
+    document.body.appendChild(opposeButton);
+});

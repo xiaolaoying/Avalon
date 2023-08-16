@@ -139,6 +139,26 @@ io.on('connection', (socket) => {
 
         io.to(roomNumber).emit('gameStarted');
     });
+
+    // 当队长选择了他的团队
+    socket.on('teamSelected', (selectedTeam) => {
+        // console.log(selectedTeam);
+        // 获取队长所在的房间
+        let roomNumber;
+        for (const room in rooms) {
+            if (rooms[room].find(player => player.id === socket.id)) {
+                roomNumber = room;
+                break;
+            }
+        }
+
+        if (!roomNumber) return; // 如果找不到房间，什么都不做
+
+        // 向该房间的所有玩家广播队伍名单
+        io.to(roomNumber).emit('teamAnnounced', selectedTeam);
+
+        // 此时，客户端应当为每个玩家显示赞成和反对的按钮来表决
+    });
 });
 
 server.listen(PORT, () => {
