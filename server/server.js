@@ -50,9 +50,17 @@ function getRolesByPlayerCount(playerCount) {
 }
 
 function shuffleArray(array) {
-    // 随机排序数组的函数，可以使用Fisher-Yates算法
+    // Fisher-Yates (也称为 Knuth) 算法
+    for (let i = array.length - 1; i > 0; i--) {
+        // 生成一个随机索引
+        const j = Math.floor(Math.random() * (i + 1));
+
+        // 交换元素
+        [array[i], array[j]] = [array[j], array[i]];
+    }
     return array;
 }
+
 
 function getCanSee(canSee, rolesArray) {
     // 根据身份的canSee属性，返回可以看到的玩家的index
@@ -60,11 +68,11 @@ function getCanSee(canSee, rolesArray) {
     canSee.forEach((roleName) => {
         rolesArray.forEach((role, index) => {
             if (r.roleDefs[roleName] === role) {
-                canSeeArray.push(role, index);
+                canSeeArray.push(index);
             }
         });
     });
-    return canSeeArray;
+    return canSeeArray.sort((a, b) => a - b); // 必须将看到的玩家按照index排序
 }
 
 io.on('connection', (socket) => {

@@ -20,7 +20,7 @@ socket.on('updatePlayers', (players) => {
 });
 
 socket.on('receiveRole', (roleName, canSeeDesc, canSeeIndex) => {
-    console.log(`你的身份是：${roleName}\n${canSeeDesc}: ${canSeeIndex}`);
+    alert(`你的身份是：${roleName}\n${canSeeDesc}: ${canSeeIndex}`);
 });
 
 socket.on('gameStarted', () => {
