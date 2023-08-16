@@ -1,14 +1,27 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>阿瓦隆助手</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Room</title>
+    <!-- 其他头部元素，如CSS引用... -->
 </head>
 <body>
-    <button id="joinRoom">加入房间</button>
-    <button id="startGame">开始游戏</button>
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script> -->
+    
+    <!-- 输入房间名的部分 -->
+    <div>
+        <label for="roomNumberInput">Enter Room Number:</label>
+        <input type="text" id="roomNumberInput" placeholder="Room Number">
+    </div>
+
+    <!-- 加入房间按钮 -->
+    <button id="joinRoom">Join Room</button>
+
+    <!-- 开始游戏按钮 -->
+    <button id="startGame">Start Game</button>
+
+    <!-- 引入你的JS脚本，确保在<body>标签的最后引入，这样在脚本执行时HTML元素已经加载完成 -->
     <script src="/socket.io/socket.io.js"></script>
-    <script src="js/client.js"></script>
+    <script src="/js/client.js"></script>
 </body>
 </html>

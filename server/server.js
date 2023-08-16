@@ -18,14 +18,22 @@ app.get('/', (req, res) => {
 io.on('connection', (socket) => {
     console.log('a user connected');
 
-    socket.on('joinRoom', (roomName) => {
-        socket.join(roomName);
-        console.log('user joined room: ' + roomName);
+    // 当用户想要加入一个房间时
+    socket.on('joinRoom', (roomNumber) => {
+        socket.join(roomNumber);
+        console.log(`user ${socket.id} joined room: ${roomNumber}`);
     });
 
-    socket.on('startGame', () => {
+    // 当用户想要离开一个房间时
+    socket.on('leaveRoom', (roomNumber) => {
+        socket.leave(roomNumber);
+        console.log(`user ${socket.id} left room: ${roomNumber}`);
+    });
+
+    // 当游戏开始事件被触发时，只发送给特定房间的用户
+    socket.on('startGame', (roomNumber) => {
         // 这里可以实现发牌等逻辑
-        io.to('roomName').emit('gameStarted', 'Game has started!');
+        io.to(roomNumber).emit('gameStarted', `Game has started in room: ${roomNumber}!`);
     });
 });
 
