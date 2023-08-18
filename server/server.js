@@ -75,27 +75,30 @@ function getCanSee(canSee, rolesArray) {
     return canSeeArray.sort((a, b) => a - b); // 必须将看到的玩家按照index排序
 }
 
+// 添加一个对象来跟踪每个房间的投票状态
+const openVotes = {};
+
 io.on('connection', (socket) => {
     console.log('a user connected');
 
     // 当用户想要加入一个房间时
     socket.on('joinRoom', (roomNumber, playerName) => {
         socket.join(roomNumber);
-    
+
         // 如果房间不存在，先创建它
         if (!rooms[roomNumber]) {
             rooms[roomNumber] = [];
         }
-    
+
         // 向房间数组中添加一个包含玩家名称和socket.id的对象
         rooms[roomNumber].push({
             name: playerName,
             id: socket.id
         });
-    
+
         // 从房间数据中提取玩家名称列表，以便发送给客户端
         const playerNames = rooms[roomNumber].map(player => player.name);
-    
+
         // 通知房间内的所有玩家
         io.to(roomNumber).emit('updatePlayers', playerNames);
     });
@@ -104,27 +107,27 @@ io.on('connection', (socket) => {
     socket.on('leaveRoom', (roomNumber, playerName) => {
         // 查找玩家在房间中的索引
         const playerIndex = rooms[roomNumber].findIndex(player => player.name === playerName);
-    
+
         // 如果玩家存在于房间中，移除他
         if (playerIndex > -1) {
             rooms[roomNumber].splice(playerIndex, 1);
         }
-    
+
         // 从房间数据中提取玩家名称列表，以便发送给客户端
         const playerNames = rooms[roomNumber].map(player => player.name);
-    
+
         // 广播更新后的玩家列表
         io.to(roomNumber).emit('updatePlayers', playerNames);
-    
+
         // 让该玩家离开这个socket房间
         socket.leave(roomNumber);
     });
-    
+
 
     // 当游戏开始事件被触发时，只发送给特定房间的用户
     socket.on('startGame', (roomNumber) => {
         const players = rooms[roomNumber];
-        
+
         if (!players || players.length < MIN_PLAYERS) {
             socket.emit('error', '玩家数量不足');
             return;
@@ -159,6 +162,67 @@ io.on('connection', (socket) => {
 
         // 此时，客户端应当为每个玩家显示赞成和反对的按钮来表决
     });
+
+    socket.on('openVote', (voteChoice) => {
+        // 获取玩家所在的房间
+        let roomNumber;
+        let playerName;
+        for (const room in rooms) {
+            const player = rooms[room].find(player => player.id === socket.id);
+            if (player) {
+                roomNumber = room;
+                playerName = player.name;
+                break;
+            }
+        }
+
+        if (!roomNumber) return;
+
+        // 初始化这个房间的投票计数（如果还没初始化过）
+        if (!openVotes[roomNumber]) {
+            openVotes[roomNumber] = {
+                approve: 0,
+                oppose: 0,
+                totalVotes: 0,
+                approveNames: [],
+                opposeNames: []
+            };
+        }
+
+        // 计数玩家的投票
+        openVotes[roomNumber][voteChoice]++;
+        openVotes[roomNumber].totalVotes++;
+
+        // 记录投票的玩家的名字
+        if (voteChoice === 'approve') {
+            openVotes[roomNumber].approveNames.push(playerName);
+        } else {
+            openVotes[roomNumber].opposeNames.push(playerName);
+        }
+
+        // 如果所有玩家都已经投票
+        if (openVotes[roomNumber].totalVotes === rooms[roomNumber].length) {
+            let resultMessage = '';
+            if (openVotes[roomNumber].approve > openVotes[roomNumber].oppose) {
+                resultMessage = `赞成票超过半数，队伍出征`;
+            } else {
+                resultMessage = '赞成票未超过半数，队伍不出征';
+            }
+
+            const detailedResult = {
+                message: resultMessage,
+                approveNames: openVotes[roomNumber].approveNames,
+                opposeNames: openVotes[roomNumber].opposeNames
+            };
+
+            io.to(roomNumber).emit('voteResult', detailedResult);
+
+            // 清除这个房间的投票记录，为下次投票做准备
+            delete openVotes[roomNumber];
+        }
+    });
+
+
 });
 
 server.listen(PORT, () => {

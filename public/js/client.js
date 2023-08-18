@@ -39,11 +39,8 @@ document.getElementById('leaveRoom').addEventListener('click', () => {
 });
 
 socket.on('receiveRole', (roleName, canSeeDesc, canSeeRoles) => {
-    // 获取playerList div元素
-    const playerListDiv = document.getElementById('playerList');
-
     // 创建一个新的div元素用于显示角色信息
-    const roleInfoDiv = document.createElement('div');
+    const roleInfoDiv = document.getElementById('roleInfo');
 
     // 添加身份信息
     const rolePara = document.createElement('p');
@@ -57,9 +54,6 @@ socket.on('receiveRole', (roleName, canSeeDesc, canSeeRoles) => {
         seeInfoPara.textContent = `${canSeeDesc}: ${rolesString}`;
         roleInfoDiv.appendChild(seeInfoPara);
     }
-
-    // 将新创建的div添加到playerList div的后面
-    playerListDiv.parentNode.insertBefore(roleInfoDiv, playerListDiv.nextSibling);
 });
 
 socket.on('gameStarted', () => {
@@ -117,24 +111,32 @@ socket.on('teamAnnounced', (selectedTeam) => {
     const teamAnnounceDiv = document.getElementById('teamAnnounced');
     teamAnnounceDiv.textContent = `队长选择了以下玩家组队: ${selectedTeam.join(', ')}`;
 
-    const approveButton = document.createElement('button');
-    approveButton.textContent = '赞成';
+    const approveButton = document.getElementById('approveButton');
+    const opposeButton = document.getElementById('opposeButton');
+
     approveButton.addEventListener('click', () => {
-        socket.emit('vote', 'approve');
+        socket.emit('openVote', 'approve');
         // 在投票后，你可以选择隐藏或禁用投票按钮
         approveButton.disabled = true;
         opposeButton.disabled = true;
     });
 
-    const opposeButton = document.createElement('button');
-    opposeButton.textContent = '反对';
     opposeButton.addEventListener('click', () => {
-        socket.emit('vote', 'oppose');
+        socket.emit('openVote', 'oppose');
         // 在投票后，你可以选择隐藏或禁用投票按钮
         approveButton.disabled = true;
         opposeButton.disabled = true;
     });
+});
 
-    document.body.appendChild(approveButton);
-    document.body.appendChild(opposeButton);
+socket.on('voteResult', function(detailedResult) {
+    // 获取显示结果的DOM元素
+    const resultMessageElem = document.getElementById('resultMessage');
+    const approveNamesElem = document.getElementById('approveNames');
+    const opposeNamesElem = document.getElementById('opposeNames');
+
+    // 更新显示的结果
+    resultMessageElem.textContent = detailedResult.message;
+    approveNamesElem.textContent = detailedResult.approveNames.join(', ');
+    opposeNamesElem.textContent = detailedResult.opposeNames.join(', ');
 });
