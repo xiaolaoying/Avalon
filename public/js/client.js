@@ -140,3 +140,21 @@ socket.on('voteResult', function(detailedResult) {
     approveNamesElem.textContent = detailedResult.approveNames.join(', ');
     opposeNamesElem.textContent = detailedResult.opposeNames.join(', ');
 });
+
+function submitVote(vote) {
+    const roomNumber = document.getElementById('roomNumberInput').value;
+    socket.emit('submitSecretVote', roomNumber, vote);
+    // 隐藏秘密投票界面
+    document.getElementById('secretVoteDisplay').style.display = 'none';
+}
+
+socket.on('beginSecretVote', () => {
+    // 显示秘密投票界面
+    document.getElementById('secretVoteDisplay').style.display = 'block';
+});
+
+socket.on('secretVoteResult', result => {
+    // 显示秘密投票结果
+    document.getElementById('secretVoteResultDisplay').style.display = 'block';
+    document.getElementById('secretResultMessage').textContent = result;
+});

@@ -75,8 +75,24 @@ function getCanSee(canSee, rolesArray) {
     return canSeeArray.sort((a, b) => a - b); // 必须将看到的玩家按照index排序
 }
 
+// 储存每个房间的队伍名单
+const teamMembers = {};
 // 添加一个对象来跟踪每个房间的投票状态
 const openVotes = {};
+// 储存秘密投票的数据结构
+const secretVotes = {};
+
+function notifyTeamMembersForSecretVote(roomNumber) {
+    const playersInRoom = rooms[roomNumber];
+
+    // 为每一个在队伍中的玩家发送通知
+    teamMembers[roomNumber].forEach(playerName => {
+        const player = playersInRoom.find(p => p.name === playerName);
+        if (player) {
+            io.to(player.id).emit('beginSecretVote');
+        }
+    });
+}
 
 io.on('connection', (socket) => {
     console.log('a user connected');
@@ -157,6 +173,9 @@ io.on('connection', (socket) => {
 
         if (!roomNumber) return; // 如果找不到房间，什么都不做
 
+        // 储存队伍名单
+        teamMembers[roomNumber] = selectedTeam;
+
         // 向该房间的所有玩家广播队伍名单
         io.to(roomNumber).emit('teamAnnounced', selectedTeam);
 
@@ -217,12 +236,45 @@ io.on('connection', (socket) => {
 
             io.to(roomNumber).emit('voteResult', detailedResult);
 
+            if (openVotes[roomNumber].approve > openVotes[roomNumber].oppose) {
+                // 初始化房间的秘密投票数据
+                secretVotes[roomNumber] = {
+                    totalVotes: 0,
+                    success: 0,
+                    fail: 0,
+                    // 不储存每个玩家的具体选择，确保投票的秘密性
+                };
+
+                notifyTeamMembersForSecretVote(roomNumber);
+
+                // teamMembers[roomNumber].forEach(playerId => {
+                //     io.to(playerId).emit('beginSecretVote');
+                // });
+
+            }
+
             // 清除这个房间的投票记录，为下次投票做准备
             delete openVotes[roomNumber];
         }
     });
 
+    socket.on('submitSecretVote', (roomNumber, vote) => {
+        secretVotes[roomNumber].totalVotes++;
+        if (vote === 'success') {
+            secretVotes[roomNumber].success++;
+        } else if (vote === 'fail') {
+            secretVotes[roomNumber].fail++;
+        }
 
+        // 如果所有玩家都已经投票
+        if (secretVotes[roomNumber].totalVotes === teamMembers[roomNumber].length) {
+            let voteOutcome = '有' + secretVotes[roomNumber].fail + '个人投了任务失败';
+            io.to(roomNumber).emit('secretVoteResult', voteOutcome);
+
+            // 清除这个房间的秘密投票记录
+            delete secretVotes[roomNumber];
+        }
+    });
 });
 
 server.listen(PORT, () => {

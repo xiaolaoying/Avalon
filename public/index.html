@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Game Room</title>
     <!-- 其他头部元素，如CSS引用... -->
 </head>
+
 <body>
 
     <!-- 输入昵称的部分 -->
@@ -49,8 +51,21 @@
         <p>反对票：<span id="opposeNames"></span></p>
     </div>
 
+    <!-- 秘密投票的HTML结构 -->
+    <div id="secretVoteDisplay" style="display: none;">
+        <h2>进行秘密投票</h2>
+        <button onclick="submitVote('success')">任务成功</button>
+        <button onclick="submitVote('fail')">任务失败</button>
+    </div>
+
+    <div id="secretVoteResultDisplay" style="display: none;">
+        <h2>秘密投票结果</h2>
+        <p id="secretResultMessage"></p>
+    </div>
+
     <!-- 引入你的JS脚本，确保在<body>标签的最后引入，这样在脚本执行时HTML元素已经加载完成 -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/client.js"></script>
 </body>
+
 </html>
