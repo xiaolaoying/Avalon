@@ -112,7 +112,9 @@ socket.on('error', (errorMsg) => {
 
 // 当收到队伍名单时
 socket.on('teamAnnounced', (selectedTeam) => {
-    // console.log('teamAnnounced');
+    document.getElementById('playerList').style.display = 'none';
+    document.getElementById('confirmTeam').style.display = 'none';
+
     const teamAnnounceDiv = document.getElementById('teamAnnounced');
     teamAnnounceDiv.style.display = 'block';
     teamAnnounceDiv.textContent = `队长选择了以下玩家组队: ${selectedTeam.join(', ')}`;
@@ -177,6 +179,9 @@ socket.on('secretVoteResult', result => {
         resultDisplay.style.display = 'none';
         document.getElementById('teamAnnounced').style.display = 'none';
         document.getElementById('voteResultDisplay').style.display = 'none';
+
+        document.getElementById('playerList').style.display = 'block';
+        document.getElementById('confirmTeam').style.display = 'inline';
     }, 5000);  // 5000毫秒等于5秒
 });
 
