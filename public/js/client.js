@@ -4,7 +4,7 @@ const socket = io.connect('http://localhost:3000');
 document.getElementById('joinRoom').addEventListener('click', () => {
     const roomNumber = document.getElementById('roomNumberInput').value;
     const playerName = document.getElementById('playerNameInput').value;
-    
+
     socket.emit('joinRoom', roomNumber, playerName);
 });
 
@@ -18,7 +18,7 @@ socket.on('updatePlayers', (players) => {
         playerCheckbox.type = 'checkbox';
         playerCheckbox.value = player;
         playerCheckbox.id = 'player-' + player;
-        // playerCheckbox.disabled = !isCaptainTurn; // 如果不是队长的轮次则禁用复选框
+        playerCheckbox.style.display = 'none'; // 默认隐藏复选框
 
         const playerLabel = document.createElement('label');
         playerLabel.htmlFor = 'player-' + player;
@@ -57,7 +57,12 @@ socket.on('receiveRole', (roleName, canSeeDesc, canSeeRoles) => {
 });
 
 socket.on('gameStarted', () => {
-    // 进行其他游戏开始后的逻辑
+    document.getElementById('confirmTeam').style.display = 'inline';
+    const playerListDiv = document.getElementById('playerList');
+    const checkboxes = playerListDiv.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.style.display = 'inline'; // 启用所有复选框
+    });
 });
 
 // 当用户点击"开始游戏"按钮时
@@ -109,27 +114,33 @@ socket.on('error', (errorMsg) => {
 socket.on('teamAnnounced', (selectedTeam) => {
     // console.log('teamAnnounced');
     const teamAnnounceDiv = document.getElementById('teamAnnounced');
+    teamAnnounceDiv.style.display = 'block';
     teamAnnounceDiv.textContent = `队长选择了以下玩家组队: ${selectedTeam.join(', ')}`;
 
     const approveButton = document.getElementById('approveButton');
     const opposeButton = document.getElementById('opposeButton');
 
+    approveButton.style.display = 'inline';
+    opposeButton.style.display = 'inline';
+
     approveButton.addEventListener('click', () => {
         socket.emit('openVote', 'approve');
         // 在投票后，你可以选择隐藏或禁用投票按钮
-        approveButton.disabled = true;
-        opposeButton.disabled = true;
+        approveButton.style.display = 'none';
+        opposeButton.style.display = 'none';
     });
 
     opposeButton.addEventListener('click', () => {
         socket.emit('openVote', 'oppose');
         // 在投票后，你可以选择隐藏或禁用投票按钮
-        approveButton.disabled = true;
-        opposeButton.disabled = true;
+        approveButton.style.display = 'none';
+        opposeButton.style.display = 'none';
     });
 });
 
-socket.on('voteResult', function(detailedResult) {
+socket.on('voteResult', function (detailedResult) {
+    document.getElementById('voteResultDisplay').style.display = 'block';
+
     // 获取显示结果的DOM元素
     const resultMessageElem = document.getElementById('resultMessage');
     const approveNamesElem = document.getElementById('approveNames');
@@ -155,6 +166,17 @@ socket.on('beginSecretVote', () => {
 
 socket.on('secretVoteResult', result => {
     // 显示秘密投票结果
-    document.getElementById('secretVoteResultDisplay').style.display = 'block';
-    document.getElementById('secretResultMessage').textContent = result;
+    const resultDisplay = document.getElementById('secretVoteResultDisplay');
+    const resultMessage = document.getElementById('secretResultMessage');
+
+    resultDisplay.style.display = 'block';
+    resultMessage.textContent = result;
+
+    // 设置一个5秒的定时器来隐藏显示
+    setTimeout(() => {
+        resultDisplay.style.display = 'none';
+        document.getElementById('teamAnnounced').style.display = 'none';
+        document.getElementById('voteResultDisplay').style.display = 'none';
+    }, 5000);  // 5000毫秒等于5秒
 });
+

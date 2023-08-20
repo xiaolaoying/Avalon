@@ -31,20 +31,21 @@
     <!-- 开始游戏按钮 -->
     <button id="startGame">Start Game</button>
 
+    <!-- 玩家角色信息 -->
+    <div id="roleInfo"></div>
+
     <!-- 房间内的玩家列表 -->
     <div id="playerList"></div>
 
     <!-- 确认组队按钮 -->
-    <button id="confirmTeam">确认组队</button>
-
-    <div id="roleInfo"></div>
+    <button id="confirmTeam" style="display: none;">确认组队</button>
 
     <!-- 队长选择的列表 -->
     <div id="teamAnnounced"></div>
-    <button id="approveButton">赞成</button>
-    <button id="opposeButton">反对</button>
+    <button id="approveButton" style="display: none;">赞成</button>
+    <button id="opposeButton" style="display: none;">反对</button>
 
-    <div id="voteResultDisplay">
+    <div id="voteResultDisplay" style="display: none;">
         <h2>投票结果</h2>
         <p id="resultMessage"></p>
         <p>赞成票：<span id="approveNames"></span></p>
