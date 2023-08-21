@@ -7,11 +7,9 @@
     <title>Game Room</title>
     <!-- 其他头部元素，如CSS引用... -->
     <link rel="stylesheet" href="css/style.css">
-
 </head>
 
 <body>
-
     <!-- 输入昵称的部分 -->
     <div>
         <label for="playerNameInput">Enter Your Nickname:</label>
@@ -34,7 +32,7 @@
     <button id="startGame">Start Game</button>
 
     <!-- 玩家角色信息 -->
-    <div id="roleInfo"></div>
+    <div id="roleInfo" style="display: none;"></div>
 
     <!-- 房间内的玩家列表 -->
     <div id="playerList"></div>
@@ -47,8 +45,8 @@
     <button id="approveButton" style="display: none;">赞成</button>
     <button id="opposeButton" style="display: none;">反对</button>
 
+    <!-- 公开投票的HTML结构 -->
     <div id="voteResultDisplay" style="display: none;">
-        <h2>投票结果</h2>
         <p id="resultMessage"></p>
         <p>赞成票：<span id="approveNames"></span></p>
         <p>反对票：<span id="opposeNames"></span></p>
@@ -56,13 +54,11 @@
 
     <!-- 秘密投票的HTML结构 -->
     <div id="secretVoteDisplay" style="display: none;">
-        <h2>进行秘密投票</h2>
         <button onclick="submitVote('success')">任务成功</button>
         <button onclick="submitVote('fail')">任务失败</button>
     </div>
 
     <div id="secretVoteResultDisplay" style="display: none;">
-        <h2>秘密投票结果</h2>
         <p id="secretResultMessage"></p>
     </div>
 

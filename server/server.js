@@ -18,6 +18,13 @@ app.get('/', (req, res) => {
 
 let rooms = {}; // { 'roomNumber': ['player1', 'player2', ...], ... }
 
+// 储存每个房间的队伍名单
+const teamMembers = {};
+// 添加一个对象来跟踪每个房间的投票状态
+const openVotes = {};
+// 储存秘密投票的数据结构
+const secretVotes = {};
+
 const MIN_PLAYERS = 5;
 
 function getRolesByPlayerCount(playerCount) {
@@ -73,25 +80,6 @@ function getCanSee(canSee, rolesArray) {
         });
     });
     return canSeeArray.sort((a, b) => a - b); // 必须将看到的玩家按照index排序
-}
-
-// 储存每个房间的队伍名单
-const teamMembers = {};
-// 添加一个对象来跟踪每个房间的投票状态
-const openVotes = {};
-// 储存秘密投票的数据结构
-const secretVotes = {};
-
-function notifyTeamMembersForSecretVote(roomNumber) {
-    const playersInRoom = rooms[roomNumber];
-
-    // 为每一个在队伍中的玩家发送通知
-    teamMembers[roomNumber].forEach(playerName => {
-        const player = playersInRoom.find(p => p.name === playerName);
-        if (player) {
-            io.to(player.id).emit('beginSecretVote');
-        }
-    });
 }
 
 io.on('connection', (socket) => {
@@ -199,6 +187,7 @@ io.on('connection', (socket) => {
 
         // 初始化这个房间的投票计数（如果还没初始化过）
         if (!openVotes[roomNumber]) {
+            // console.log('initilize openVotes.');
             openVotes[roomNumber] = {
                 approve: 0,
                 oppose: 0,
@@ -206,9 +195,11 @@ io.on('connection', (socket) => {
                 approveNames: [],
                 opposeNames: []
             };
+            // console.log('openVotes: ' + JSON.stringify(openVotes));
         }
 
         // 计数玩家的投票
+        // console.log('voteChoice: ' + voteChoice);
         openVotes[roomNumber][voteChoice]++;
         openVotes[roomNumber].totalVotes++;
 
@@ -218,6 +209,7 @@ io.on('connection', (socket) => {
         } else {
             openVotes[roomNumber].opposeNames.push(playerName);
         }
+        // console.log('openVotes: ' + JSON.stringify(openVotes));
 
         // 如果所有玩家都已经投票
         if (openVotes[roomNumber].totalVotes === rooms[roomNumber].length) {
@@ -246,17 +238,27 @@ io.on('connection', (socket) => {
                 };
 
                 notifyTeamMembersForSecretVote(roomNumber);
-
-                // teamMembers[roomNumber].forEach(playerId => {
-                //     io.to(playerId).emit('beginSecretVote');
-                // });
-
+            }
+            else{
+                io.to(roomNumber).emit('nextOpenVote');
             }
 
             // 清除这个房间的投票记录，为下次投票做准备
             delete openVotes[roomNumber];
         }
     });
+
+    function notifyTeamMembersForSecretVote(roomNumber) {
+        const playersInRoom = rooms[roomNumber];
+
+        // 为每一个在队伍中的玩家发送通知
+        teamMembers[roomNumber].forEach(playerName => {
+            const player = playersInRoom.find(p => p.name === playerName);
+            if (player) {
+                io.to(player.id).emit('beginSecretVote');
+            }
+        });
+    }
 
     socket.on('submitSecretVote', (roomNumber, vote) => {
         secretVotes[roomNumber].totalVotes++;
