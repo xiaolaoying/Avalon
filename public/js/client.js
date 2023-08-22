@@ -1,21 +1,5 @@
 const socket = io.connect('http://localhost:3000');
 
-// 当用户点击"赞成"按钮时
-document.getElementById('approveButton').addEventListener('click', () => {
-    socket.emit('openVote', 'approve');
-    // 在投票后，你可以选择隐藏或禁用投票按钮
-    approveButton.style.display = 'none';
-    opposeButton.style.display = 'none';
-});
-
-// 当用户点击"反对"按钮时
-document.getElementById('opposeButton').addEventListener('click', () => {
-    socket.emit('openVote', 'oppose');
-    // 在投票后，你可以选择隐藏或禁用投票按钮
-    approveButton.style.display = 'none';
-    opposeButton.style.display = 'none';
-});
-
 // 当用户点击"加入房间"按钮时
 document.getElementById('joinRoom').addEventListener('click', () => {
     const roomNumber = document.getElementById('roomNumberInput').value;
@@ -61,6 +45,22 @@ document.getElementById('confirmTeam').addEventListener('click', () => {
     } else {
         alert('你需要选择至少一个玩家！');
     }
+});
+
+// 当用户点击"赞成"按钮时
+document.getElementById('approveButton').addEventListener('click', () => {
+    socket.emit('openVote', 'approve');
+    // 在投票后，你可以选择隐藏或禁用投票按钮
+    approveButton.style.display = 'none';
+    opposeButton.style.display = 'none';
+});
+
+// 当用户点击"反对"按钮时
+document.getElementById('opposeButton').addEventListener('click', () => {
+    socket.emit('openVote', 'oppose');
+    // 在投票后，你可以选择隐藏或禁用投票按钮
+    approveButton.style.display = 'none';
+    opposeButton.style.display = 'none';
 });
 
 socket.on('updatePlayers', (players) => {
