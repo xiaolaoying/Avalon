@@ -49,3 +49,10 @@ label {
     background-color: #fff;
     border-radius: 5px;
 }
+
+.developer-info {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #888;
+    margin-top: 20px;
+}

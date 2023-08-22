@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Room</title>
+    <title>阿瓦隆桌游助手</title>
     <!-- 其他头部元素，如CSS引用... -->
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -12,24 +12,24 @@
 <body>
     <!-- 输入昵称的部分 -->
     <div>
-        <label for="playerNameInput">Enter Your Nickname:</label>
+        <label for="playerNameInput">输入你的昵称:</label>
         <input type="text" id="playerNameInput" placeholder="Nickname">
     </div>
 
     <!-- 输入房间号的部分 -->
     <div>
-        <label for="roomNumberInput">Enter Room Number:</label>
+        <label for="roomNumberInput">输入房间号:</label>
         <input type="text" id="roomNumberInput" placeholder="Room Number">
     </div>
 
     <!-- 加入房间按钮 -->
-    <button id="joinRoom">Join Room</button>
+    <button id="joinRoom">加入房间</button>
 
     <!-- 离开房间按钮 -->
-    <button id="leaveRoom">Leave Room</button>
+    <button id="leaveRoom">离开房间</button>
 
     <!-- 开始游戏按钮 -->
-    <button id="startGame">Start Game</button>
+    <button id="startGame">分发身份</button>
 
     <!-- 玩家角色信息 -->
     <div id="roleInfo" style="display: none;"></div>
@@ -61,6 +61,10 @@
     <div id="secretVoteResultDisplay" style="display: none;">
         <p id="secretResultMessage"></p>
     </div>
+
+
+    <!-- 开发者信息 -->
+    <p class="developer-info">Developed by 殷泽原. 祝林小烨七夕快乐！</p>
 
     <!-- 引入你的JS脚本，确保在<body>标签的最后引入，这样在脚本执行时HTML元素已经加载完成 -->
     <script src="/socket.io/socket.io.js"></script>

@@ -2,19 +2,34 @@ const socket = io.connect('http://localhost:3000');
 
 // 当用户点击"加入房间"按钮时
 document.getElementById('joinRoom').addEventListener('click', () => {
-    const roomNumber = document.getElementById('roomNumberInput').value;
-    const playerName = document.getElementById('playerNameInput').value;
+    const roomNumberInput = document.getElementById('roomNumberInput');
+    const playerNameInput = document.getElementById('playerNameInput');
+
+    const roomNumber = roomNumberInput.value;
+    const playerName = playerNameInput.value;
 
     socket.emit('joinRoom', roomNumber, playerName);
+
+    // 禁用输入框
+    roomNumberInput.disabled = true;
+    playerNameInput.disabled = true;
 });
 
 // 当用户点击"离开房间"按钮时
 document.getElementById('leaveRoom').addEventListener('click', () => {
-    const roomNumber = document.getElementById('roomNumberInput').value;
-    const playerName = document.getElementById('playerNameInput').value;
+    const roomNumberInput = document.getElementById('roomNumberInput');
+    const playerNameInput = document.getElementById('playerNameInput');
+
+    const roomNumber = roomNumberInput.value;
+    const playerName = playerNameInput.value;
 
     socket.emit('leaveRoom', roomNumber, playerName);
+
+    // 重新启用输入框
+    roomNumberInput.disabled = false;
+    playerNameInput.disabled = false;
 });
+
 
 // 当用户点击"开始游戏"按钮时
 document.getElementById('startGame').addEventListener('click', () => {
