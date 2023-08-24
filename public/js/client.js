@@ -28,6 +28,9 @@ document.getElementById('leaveRoom').addEventListener('click', () => {
     // 重新启用输入框
     roomNumberInput.disabled = false;
     playerNameInput.disabled = false;
+
+    // 清除玩家列表
+    document.getElementById('playerList').innerHTML = '';
 });
 
 

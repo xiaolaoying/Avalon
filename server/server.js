@@ -137,11 +137,11 @@ io.on('connection', (socket) => {
         // 从房间数据中提取玩家名称列表，以便发送给客户端
         const playerNames = rooms[roomNumber].map(player => player.name);
 
-        // 广播更新后的玩家列表
-        io.to(roomNumber).emit('updatePlayers', playerNames);
-
         // 让该玩家离开这个socket房间
         socket.leave(roomNumber);
+
+        // 广播更新后的玩家列表
+        io.to(roomNumber).emit('updatePlayers', playerNames);   
     });
 
 
