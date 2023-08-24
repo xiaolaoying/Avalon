@@ -102,6 +102,7 @@ socket.on('updatePlayers', (players) => {
 
 socket.on('receiveRole', (roleName, canSeeDesc, canSeeRoles) => {
     const roleInfoDiv = document.getElementById('roleInfo');
+    roleInfoDiv.innerHTML = ''; // 清除现有的身份信息
     roleInfoDiv.style.display = 'block';
 
     // 添加身份信息

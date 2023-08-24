@@ -101,7 +101,16 @@ io.on('connection', (socket) => {
             rooms[roomNumber] = [];
         }
 
-        // 向房间数组中添加一个包含玩家名称和socket.id的对象
+        // 检查是否已有相同名称的玩家
+        const existingPlayer = rooms[roomNumber].find(player => player.name === playerName);
+
+        if (existingPlayer) {
+            // 如果存在重名玩家，发送一个错误消息给试图加入的玩家
+            socket.emit('error', '玩家名称已被使用，请选择另一个名称！');
+            return; // 退出，不让玩家加入
+        }
+
+        // 如果没有重名玩家，将玩家加入房间
         rooms[roomNumber].push({
             name: playerName,
             id: socket.id
@@ -113,6 +122,7 @@ io.on('connection', (socket) => {
         // 通知房间内的所有玩家
         io.to(roomNumber).emit('updatePlayers', playerNames);
     });
+
 
     // 当用户想要离开一个房间时
     socket.on('leaveRoom', (roomNumber, playerName) => {
