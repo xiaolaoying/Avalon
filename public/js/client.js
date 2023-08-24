@@ -1,4 +1,4 @@
-const socket = io.connect('http://localhost:3000');
+const socket = io.connect('https://zlzai.xyz');
 
 // 当用户点击"加入房间"按钮时
 document.getElementById('joinRoom').addEventListener('click', () => {

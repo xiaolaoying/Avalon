@@ -1,2 +1,4 @@
 node_modules
 chromedriver
+.DS_Store
+public/.DS_Store

@@ -1,12 +1,19 @@
 const express = require('express');
+const cors = require('cors');
 const http = require('http');
-const socketIo = require('socket.io');
 const r = require('./roles');
 
 const app = express();
+app.use(cors());
 const PORT = 3000;
 const server = http.createServer(app);
-const io = socketIo(server);
+
+const io = require('socket.io')(server, {
+    cors: {
+        origin: "https://zlzai.xyz",
+        methods: ["GET", "POST"]
+    }
+});
 
 // 设置静态文件托管
 app.use(express.static('public'));
@@ -239,7 +246,7 @@ io.on('connection', (socket) => {
 
                 notifyTeamMembersForSecretVote(roomNumber);
             }
-            else{
+            else {
                 io.to(roomNumber).emit('nextOpenVote');
             }
 
