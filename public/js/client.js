@@ -31,6 +31,7 @@ document.getElementById('leaveRoom').addEventListener('click', () => {
 
     // 清除玩家列表
     document.getElementById('playerList').innerHTML = '';
+    document.getElementById('roleInfo').innerHTML = '';
 });
 
 

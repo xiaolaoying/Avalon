@@ -19,7 +19,7 @@ async function openWindowAndTest(name, roomNumber) {
 (async function main() {
     // const inputs = ['Input 1', 'Input 2', 'Input 3', 'Input 4', 'Input 5'];
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 1; i <= 5; i++) {
         await openWindowAndTest("p" + i, 1111);
     }
 })();
