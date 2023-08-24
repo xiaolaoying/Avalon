@@ -10,7 +10,7 @@ async function createIncognitoBrowser() {
 async function openWindowAndTest(name, roomNumber) {
     let driver = await createIncognitoBrowser();
     await driver.manage().window().setRect({width: 400, height: 800});
-    await driver.get('http://localhost:3000');  // or whatever site you want
+    await driver.get('https://zlzai.xyz');  // or whatever site you want
     await driver.findElement(By.id('playerNameInput')).sendKeys(name, Key.RETURN);
     await driver.findElement(By.id('roomNumberInput')).sendKeys(roomNumber, Key.RETURN);
     await driver.findElement(By.id('joinRoom')).click();
