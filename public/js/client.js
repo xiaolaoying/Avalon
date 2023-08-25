@@ -218,3 +218,8 @@ socket.on('nextOpenVote', () => {
         document.getElementById('confirmTeam').style.display = 'inline';
     }, 5000);  // 5000毫秒等于5秒
 });
+
+window.onbeforeunload = function(e) {
+    e.preventDefault();
+    e.returnValue = '您确定要离开吗？游戏进度可能会丢失。';
+};
