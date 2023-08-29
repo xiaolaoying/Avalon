@@ -1,5 +1,10 @@
 const socket = io.connect('https://' + window.location.hostname);
 
+const ROOM_WAIT = 0; // 游戏还没有开始
+const ROOM_SPEAK = 1; // 发言阶段
+const ROOM_VOTE = 2; // 投票开车阶段
+const ROOM_TASK = 3; // 发车成功，做任务阶段
+
 // 当用户点击"加入房间"按钮时
 document.getElementById('joinRoom').addEventListener('click', () => {
     const roomNumberInput = document.getElementById('roomNumberInput');
@@ -82,7 +87,7 @@ document.getElementById('opposeButton').addEventListener('click', () => {
     opposeButton.style.display = 'none';
 });
 
-socket.on('updatePlayers', (players) => {
+function updatePlayers(players) {
     const playerListDiv = document.getElementById('playerList');
     playerListDiv.innerHTML = ''; // 清除现有玩家列表
 
@@ -102,9 +107,12 @@ socket.on('updatePlayers', (players) => {
         playerDiv.appendChild(playerLabel);
         playerListDiv.appendChild(playerDiv);
     });
+}
+socket.on('updatePlayers', (players) => {
+    updatePlayers(players);
 });
 
-socket.on('receiveRole', (roleName, canSeeDesc, canSeeRoles) => {
+function setRole(roleName, canSeeDesc, canSeeRoles) {
     const roleInfoDiv = document.getElementById('roleInfo');
     roleInfoDiv.innerHTML = ''; // 清除现有的身份信息
     roleInfoDiv.style.display = 'block';
@@ -121,15 +129,23 @@ socket.on('receiveRole', (roleName, canSeeDesc, canSeeRoles) => {
         seeInfoPara.textContent = `${canSeeDesc}: ${rolesString}`;
         roleInfoDiv.appendChild(seeInfoPara);
     }
+}
+
+socket.on('receiveRole', (roleName, canSeeDesc, canSeeRoles) => {
+    setRole(roleName, canSeeDesc, canSeeRoles);
 });
 
-socket.on('gameStarted', () => {
+function gameStart() {
     document.getElementById('confirmTeam').style.display = 'inline';
     const playerListDiv = document.getElementById('playerList');
     const checkboxes = playerListDiv.querySelectorAll('input[type="checkbox"]');
     checkboxes.forEach(checkbox => {
         checkbox.style.display = 'inline'; // 启用所有复选框
     });
+}
+
+socket.on('gameStarted', () => {
+    gameStart();
 });
 
 // // 当轮到队长选择玩家组队时
@@ -147,8 +163,7 @@ socket.on('error', (errorMsg) => {
     alert(errorMsg); // 使用alert来显示错误信息
 });
 
-// 当收到队伍名单时
-socket.on('teamAnnounced', (selectedTeam) => {
+function teamAnnounced(selectedTeam) {
     document.getElementById('playerList').style.display = 'none';
     document.getElementById('confirmTeam').style.display = 'none';
 
@@ -160,9 +175,14 @@ socket.on('teamAnnounced', (selectedTeam) => {
     const opposeButton = document.getElementById('opposeButton');
     approveButton.style.display = 'inline';
     opposeButton.style.display = 'inline';
+}
+
+// 当收到队伍名单时
+socket.on('teamAnnounced', (selectedTeam) => {
+    teamAnnounced(selectedTeam);
 });
 
-socket.on('voteResult', function (detailedResult) {
+function showVoteResult(detailedResult) {
     document.getElementById('voteResultDisplay').style.display = 'block';
 
     // 获取显示结果的DOM元素
@@ -174,11 +194,18 @@ socket.on('voteResult', function (detailedResult) {
     resultMessageElem.textContent = detailedResult.message;
     approveNamesElem.textContent = detailedResult.approveNames.join(', ');
     opposeNamesElem.textContent = detailedResult.opposeNames.join(', ');
+}
+socket.on('voteResult', function (detailedResult) {
+    showVoteResult(detailedResult);
 });
 
-socket.on('beginSecretVote', () => {
+function beginSecretVote() {
     // 显示秘密投票界面
     document.getElementById('secretVoteDisplay').style.display = 'block';
+}
+
+socket.on('beginSecretVote', () => {
+    beginSecretVote();
 });
 
 // 当用户开始"秘密投票"时调用
@@ -219,7 +246,62 @@ socket.on('nextOpenVote', () => {
     }, 5000);  // 5000毫秒等于5秒
 });
 
-window.onbeforeunload = function(e) {
-    e.preventDefault();
-    e.returnValue = '您确定要离开吗？游戏进度可能会丢失。';
-};
+
+// 需要恢复出当前游戏进行的状态
+socket.on('reconnect', (roomStatus, playerName, roomNumber, args) => {
+    const roomNumberInput = document.getElementById('roomNumberInput');
+    const playerNameInput = document.getElementById('playerNameInput');
+
+    roomNumberInput.value = roomNumber
+    playerNameInput.value = playerName
+
+    // 禁用输入框
+    roomNumberInput.disabled = true;
+    playerNameInput.disabled = true;
+
+    if (roomStatus == ROOM_WAIT) {
+        // 重新启用输入框
+        roomNumberInput.disabled = false;
+        playerNameInput.disabled = false;
+
+        const players = args.players;
+        updatePlayers(players);
+    } else if (roomStatus == ROOM_SPEAK) {
+        const players = args.players;
+        const role = args.role;
+        updatePlayers(players);
+        gameStart();
+        setRole(role.roleName, role.canSeeDesc, role.canSeeRoles);
+    } else if (roomStatus == ROOM_VOTE) {
+        const players = args.players;
+        const selectedTeam = args.selectedTeam;
+        const role = args.role;
+        updatePlayers(players);
+        gameStart();
+        setRole(role.roleName, role.canSeeDesc, role.canSeeRoles);
+        teamAnnounced(selectedTeam);
+    } else if (roomStatus == ROOM_TASK) {
+        const players = args.players;
+        const selectedTeam = args.selectedTeam;
+        const role = args.role;
+        updatePlayers(players);
+        gameStart();
+        setRole(role.roleName, role.canSeeDesc, role.canSeeRoles);
+        teamAnnounced(selectedTeam);
+        const approveButton = document.getElementById('approveButton');
+        const opposeButton = document.getElementById('opposeButton');
+        approveButton.style.display = 'none';
+        opposeButton.style.display = 'none';
+        const canSecretVote = args.canSecretVote;
+        const detailedResult = args.detailedResult;
+        showVoteResult(detailedResult);
+        if (canSecretVote) {
+            beginSecretVote();
+        }
+    } 
+});
+
+// window.onbeforeunload = function(e) {
+//     e.preventDefault();
+//     e.returnValue = '您确定要离开吗？游戏进度可能会丢失。';
+// };

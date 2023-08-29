@@ -2,13 +2,43 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const r = require('./roles');
+const session = require("express-session");
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 app.use(cors());
 const PORT = 3000;
 const server = http.createServer(app);
 
+const sessionMiddleware = session({
+    secret: "smart-wht",
+    resave: true,
+    saveUninitialized: true,
+});
+
 const io = require('socket.io')(server, {
+    allowRequest: (req, callback) => {
+        // with HTTP long-polling, we have access to the HTTP response here, but this is not
+        // the case with WebSocket, so we provide a dummy response object
+        const fakeRes = {
+            getHeader() {
+                return [];
+            },
+            setHeader(key, values) {
+                req.cookieHolder = values[0];
+            },
+            writeHead() { },
+        };
+        sessionMiddleware(req, fakeRes, () => {
+            if (req.session) {
+                // trigger the setHeader() above
+                fakeRes.writeHead();
+                // manually save the session (normally triggered by res.end())
+                req.session.save();
+            }
+            callback(null, true);
+        });
+    },
     cors: {
         //origin: "https://zlzai.xyz",
         methods: ["GET", "POST"]
@@ -19,11 +49,24 @@ const io = require('socket.io')(server, {
 app.use(express.static('public'));
 
 // 当用户访问根URL时，发送index.html
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/public/index.html');
-});
+// app.get('/', (req, res) => {
+//     res.sendFile(__dirname + '/public/index.html');
+// });
 
-let rooms = {}; // { 'roomNumber': ['player1', 'player2', ...], ... }
+
+// { 'roomNumber': {
+// players: ['player1', 'player2', ...],
+// roomStatus: ROOM_WAIT ...
+// }, ... }
+let rooms = {}; 
+
+// { 'session.userId': { 'roomNumber': ... }, ... }
+let sessionTrack = {}; 
+
+const ROOM_WAIT = 0; // 游戏还没有开始
+const ROOM_SPEAK = 1; // 发言阶段
+const ROOM_VOTE = 2; // 投票开车阶段
+const ROOM_TASK = 3; // 发车成功，做任务阶段
 
 // 储存每个房间的队伍名单
 const teamMembers = {};
@@ -89,20 +132,92 @@ function getCanSee(canSee, rolesArray) {
     return canSeeArray.sort((a, b) => a - b); // 必须将看到的玩家按照index排序
 }
 
+io.engine.on("initial_headers", (headers, req) => {
+    if (req.cookieHolder) {
+        headers["set-cookie"] = req.cookieHolder;
+        delete req.cookieHolder;
+    }
+});
+
 io.on('connection', (socket) => {
-    console.log('a user connected');
+    const req = socket.request;
+    console.log(`${socket.id} connected, sessionId=${req.session.userId}`)
+    if (req.session.userId != null) {
+        console.log(`apply all event when ${req.session.userId} not online`);
+        let track = sessionTrack[req.session.userId];
+        if (track != null) {
+            const roomNumber = track['roomNumber'];
+            const room = rooms[roomNumber];
+            var playerIndex = -1;
+            if (room) {
+                // 查找玩家在房间中的索引
+                playerIndex = rooms[roomNumber].players.findIndex(player => player.session === req.session.userId);
+            }
+            
+            // 如果玩家存在于房间中，说明该玩家为重连，将他标记为在线
+            if (playerIndex > -1) {
+                room.players[playerIndex].online = true;
+                room.players[playerIndex].id = socket.id;
+                const player = room.players[playerIndex];
+                const playerNames = room.players.map(player => player.name);
+                var canSecretVote = false;
+                if (teamMembers[roomNumber]) {
+                    if (teamMembers[roomNumber].find(playerName => player.name === playerName)) {
+                        canSecretVote = true;
+                    }
+                }
+                var reconnectArgs = {
+                    players: playerNames,
+                    selectedTeam: teamMembers[roomNumber],
+                    detailedResult: room.detailedResult,
+                    canSecretVote: canSecretVote,
+                    role: player.role
+                }
+                socket.join(roomNumber);
+                io.to(socket.id).emit('reconnect', room.roomStatus, player.name, roomNumber, reconnectArgs);
+            }
+        }
+    }
+
+    socket.use((__, next) => {
+        req.session.reload((err) => {
+            if (err) {
+                socket.disconnect();
+            } else {
+                if (req.session.userId == null) {
+                    req.session.userId = uuidv4();
+                    req.session.save();
+                }
+                next();
+            }
+        });
+    });
+
+    function eventToRoom(roomNumber, eventName, ...args) {
+        io.to(roomNumber).emit(eventName, ...args);
+        rooms[roomNumber].players.forEach((player, index) => {
+        })
+    }
+
+    function eventToPlayer(player, eventName, ...args) {
+        io.to(player.id).emit(eventName, ...args);
+    }
 
     // 当用户想要加入一个房间时
     socket.on('joinRoom', (roomNumber, playerName) => {
+        console.log(`${req.session.userId} join room`);
         socket.join(roomNumber);
 
         // 如果房间不存在，先创建它
         if (!rooms[roomNumber]) {
-            rooms[roomNumber] = [];
+            rooms[roomNumber] = {
+                players: [],
+                roomStatus: ROOM_WAIT
+            };
         }
 
         // 检查是否已有相同名称的玩家
-        const existingPlayer = rooms[roomNumber].find(player => player.name === playerName);
+        const existingPlayer = rooms[roomNumber].players.find(player => player.name === playerName);
 
         if (existingPlayer) {
             // 如果存在重名玩家，发送一个错误消息给试图加入的玩家
@@ -111,43 +226,57 @@ io.on('connection', (socket) => {
         }
 
         // 如果没有重名玩家，将玩家加入房间
-        rooms[roomNumber].push({
+        rooms[roomNumber].players.push({
             name: playerName,
-            id: socket.id
+            id: socket.id,
+            session: req.session.userId,
+            online: true
         });
 
+        sessionTrack[req.session.userId] = {
+            'roomNumber': roomNumber,
+            'historyEvent': [],
+            'metaEvent': []
+        }
+
         // 从房间数据中提取玩家名称列表，以便发送给客户端
-        const playerNames = rooms[roomNumber].map(player => player.name);
+        const playerNames = rooms[roomNumber].players.map(player => player.name);
 
         // 通知房间内的所有玩家
-        io.to(roomNumber).emit('updatePlayers', playerNames);
+        eventToRoom(roomNumber, 'updatePlayers', playerNames)
+        // io.to(roomNumber).emit('updatePlayers', playerNames);
     });
 
 
     // 当用户想要离开一个房间时
     socket.on('leaveRoom', (roomNumber, playerName) => {
+        console.log(`${req.session.userId} leave room`);
         // 查找玩家在房间中的索引
-        const playerIndex = rooms[roomNumber].findIndex(player => player.name === playerName);
+        const playerIndex = rooms[roomNumber].players.findIndex(player => player.name === playerName);
 
         // 如果玩家存在于房间中，移除他
         if (playerIndex > -1) {
-            rooms[roomNumber].splice(playerIndex, 1);
+            rooms[roomNumber].players.splice(playerIndex, 1);
         }
 
         // 从房间数据中提取玩家名称列表，以便发送给客户端
-        const playerNames = rooms[roomNumber].map(player => player.name);
+        const playerNames = rooms[roomNumber].players.map(player => player.name);
 
         // 让该玩家离开这个socket房间
         socket.leave(roomNumber);
 
+        sessionTrack.delete(req.session.userId)
+
         // 广播更新后的玩家列表
-        io.to(roomNumber).emit('updatePlayers', playerNames);   
+        eventToRoom(roomNumber, 'updatePlayers', playerNames)
+        // io.to(roomNumber).emit('updatePlayers', playerNames);
     });
 
 
     // 当游戏开始事件被触发时，只发送给特定房间的用户
     socket.on('startGame', (roomNumber) => {
-        const players = rooms[roomNumber];
+        console.log(`${req.session.userId} start game`);
+        const players = rooms[roomNumber].players;
 
         if (!players || players.length < MIN_PLAYERS) {
             socket.emit('error', '玩家数量不足');
@@ -155,22 +284,29 @@ io.on('connection', (socket) => {
         }
 
         const shuffledRoles = shuffleArray(getRolesByPlayerCount(players.length)); // 对身份进行随机排序
-
+        rooms[roomNumber].roomStatus = ROOM_SPEAK;
         players.forEach((player, index) => {
             const role = shuffledRoles[index];
-            io.to(player.id).emit('receiveRole', role.name, role.canSeeDesc, getCanSee(role.canSee, shuffledRoles).map(index => players[index].name));
+            eventToPlayer(player, 'receiveRole', role.name, role.canSeeDesc, getCanSee(role.canSee, shuffledRoles).map(index => players[index].name))
+            player.role = {
+                roleName: role.name,
+                canSeeDesc: role.canSeeDesc,
+                canSeeRoles: getCanSee(role.canSee, shuffledRoles).map(index => players[index].name)
+            }
+            // io.to(player.id).emit('receiveRole', role.name, role.canSeeDesc, getCanSee(role.canSee, shuffledRoles).map(index => players[index].name));
         });
 
-        io.to(roomNumber).emit('gameStarted');
+        eventToRoom(roomNumber, 'gameStarted')
+        // io.to(roomNumber).emit('gameStarted');
     });
 
     // 当队长选择了他的团队
     socket.on('teamSelected', (selectedTeam) => {
-        // console.log(selectedTeam);
+        console.log(`${req.session.userId} select team ${selectedTeam}`);
         // 获取队长所在的房间
         let roomNumber;
         for (const room in rooms) {
-            if (rooms[room].find(player => player.id === socket.id)) {
+            if (rooms[room].players.find(player => player.id === socket.id)) {
                 roomNumber = room;
                 break;
             }
@@ -181,18 +317,22 @@ io.on('connection', (socket) => {
         // 储存队伍名单
         teamMembers[roomNumber] = selectedTeam;
 
+        rooms[roomNumber].roomStatus = ROOM_VOTE;
         // 向该房间的所有玩家广播队伍名单
-        io.to(roomNumber).emit('teamAnnounced', selectedTeam);
+        eventToRoom(roomNumber, 'teamAnnounced', selectedTeam)
+        // io.to(roomNumber).emit('teamAnnounced', selectedTeam);
 
         // 此时，客户端应当为每个玩家显示赞成和反对的按钮来表决
     });
 
     socket.on('openVote', (voteChoice) => {
+        // TODO: 注意刷新后同一个玩家重复投票的问题
+        console.log(`${req.session.userId} vete ${voteChoice}`);
         // 获取玩家所在的房间
         let roomNumber;
         let playerName;
         for (const room in rooms) {
-            const player = rooms[room].find(player => player.id === socket.id);
+            const player = rooms[room].players.find(player => player.id === socket.id);
             if (player) {
                 roomNumber = room;
                 playerName = player.name;
@@ -204,7 +344,6 @@ io.on('connection', (socket) => {
 
         // 初始化这个房间的投票计数（如果还没初始化过）
         if (!openVotes[roomNumber]) {
-            // console.log('initilize openVotes.');
             openVotes[roomNumber] = {
                 approve: 0,
                 oppose: 0,
@@ -212,7 +351,6 @@ io.on('connection', (socket) => {
                 approveNames: [],
                 opposeNames: []
             };
-            // console.log('openVotes: ' + JSON.stringify(openVotes));
         }
 
         // 计数玩家的投票
@@ -226,10 +364,9 @@ io.on('connection', (socket) => {
         } else {
             openVotes[roomNumber].opposeNames.push(playerName);
         }
-        // console.log('openVotes: ' + JSON.stringify(openVotes));
 
         // 如果所有玩家都已经投票
-        if (openVotes[roomNumber].totalVotes === rooms[roomNumber].length) {
+        if (openVotes[roomNumber].totalVotes === rooms[roomNumber].players.length) {
             let resultMessage = '';
             if (openVotes[roomNumber].approve > openVotes[roomNumber].oppose) {
                 resultMessage = `赞成票超过半数，队伍出征`;
@@ -242,8 +379,9 @@ io.on('connection', (socket) => {
                 approveNames: openVotes[roomNumber].approveNames,
                 opposeNames: openVotes[roomNumber].opposeNames
             };
-
-            io.to(roomNumber).emit('voteResult', detailedResult);
+            rooms[roomNumber].detailedResult = detailedResult;
+            eventToRoom(roomNumber, 'voteResult', detailedResult)
+            //io.to(roomNumber).emit('voteResult', detailedResult);
 
             if (openVotes[roomNumber].approve > openVotes[roomNumber].oppose) {
                 // 初始化房间的秘密投票数据
@@ -253,11 +391,12 @@ io.on('connection', (socket) => {
                     fail: 0,
                     // 不储存每个玩家的具体选择，确保投票的秘密性
                 };
-
+                rooms[roomNumber].roomStatus = ROOM_TASK;
                 notifyTeamMembersForSecretVote(roomNumber);
             }
             else {
-                io.to(roomNumber).emit('nextOpenVote');
+                eventToRoom(roomNumber, 'nextOpenVote')
+                // io.to(roomNumber).emit('nextOpenVote');
             }
 
             // 清除这个房间的投票记录，为下次投票做准备
@@ -266,18 +405,20 @@ io.on('connection', (socket) => {
     });
 
     function notifyTeamMembersForSecretVote(roomNumber) {
-        const playersInRoom = rooms[roomNumber];
+        const playersInRoom = rooms[roomNumber].players;
 
         // 为每一个在队伍中的玩家发送通知
         teamMembers[roomNumber].forEach(playerName => {
             const player = playersInRoom.find(p => p.name === playerName);
             if (player) {
-                io.to(player.id).emit('beginSecretVote');
+                eventToPlayer(player, 'beginSecretVote')
+                // io.to(player.id).emit('beginSecretVote');
             }
         });
     }
 
     socket.on('submitSecretVote', (roomNumber, vote) => {
+        console.log(`${req.session.userId} submit secret vote, room=${roomNumber}, vote=${vote}`);
         secretVotes[roomNumber].totalVotes++;
         if (vote === 'success') {
             secretVotes[roomNumber].success++;
@@ -288,10 +429,34 @@ io.on('connection', (socket) => {
         // 如果所有玩家都已经投票
         if (secretVotes[roomNumber].totalVotes === teamMembers[roomNumber].length) {
             let voteOutcome = '有' + secretVotes[roomNumber].fail + '个人投了任务失败';
-            io.to(roomNumber).emit('secretVoteResult', voteOutcome);
+            eventToRoom(roomNumber, 'secretVoteResult', voteOutcome)
+            // io.to(roomNumber).emit('secretVoteResult', voteOutcome);
 
             // 清除这个房间的秘密投票记录
             delete secretVotes[roomNumber];
+            rooms[roomNumber].roomStatus = ROOM_SPEAK;
+        }
+    });
+
+    socket.on("disconnect", (reason) => {
+        console.log(`${req.session.userId} disconnect because ${reason}`);
+        var roomNumber = null;
+        try {
+            roomNumber = sessionTrack[req.session.userId]['roomNumber']
+        } catch (e) {
+        }
+
+        if (roomNumber == null) {
+            return;
+        }
+
+        // 查找玩家在房间中的索引
+        const playerIndex = rooms[roomNumber].players.findIndex(player => player.session === req.session.userId);
+
+        // 如果玩家存在于房间中，将他标记为离线
+        if (playerIndex > -1) {
+            rooms[roomNumber].players[playerIndex].online = false;
+            socket.leave(roomNumber);
         }
     });
 });
