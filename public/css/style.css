@@ -56,3 +56,12 @@ label {
     color: #888;
     margin-top: 20px;
 }
+
+.tutorial-link {
+    margin-bottom: 20px;
+    display: block;
+}
+
+#playerList {
+    margin-top: 20px;
+}

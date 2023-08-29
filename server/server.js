@@ -40,7 +40,7 @@ const io = require('socket.io')(server, {
         });
     },
     cors: {
-        //origin: "https://zlzai.xyz",
+        origin: "https://zlzai.xyz",
         methods: ["GET", "POST"]
     }
 });
