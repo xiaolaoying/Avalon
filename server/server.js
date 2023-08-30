@@ -40,7 +40,7 @@ const io = require('socket.io')(server, {
         });
     },
     cors: {
-        origin: "https://zlzai.xyz",
+        // origin: "https://zlzai.xyz",
         methods: ["GET", "POST"]
     }
 });
@@ -436,6 +436,10 @@ io.on('connection', (socket) => {
             delete secretVotes[roomNumber];
             rooms[roomNumber].roomStatus = ROOM_SPEAK;
         }
+    });
+
+    socket.on("ping", (cb) => {
+        cb("pong");
     });
 
     socket.on("disconnect", (reason) => {

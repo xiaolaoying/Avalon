@@ -14,7 +14,9 @@ document.getElementById('joinRoom').addEventListener('click', () => {
     const playerName = playerNameInput.value;
 
     socket.emit('joinRoom', roomNumber, playerName);
-
+    socket.emit("ping", (err, responses) => {
+        console.log(responses[0]); // prints "pong"
+    });
     // 禁用输入框
     roomNumberInput.disabled = true;
     playerNameInput.disabled = true;
@@ -181,6 +183,10 @@ function teamAnnounced(selectedTeam) {
 socket.on('teamAnnounced', (selectedTeam) => {
     teamAnnounced(selectedTeam);
 });
+
+function showVoteHistory() {
+
+}
 
 function showVoteResult(detailedResult) {
     document.getElementById('voteResultDisplay').style.display = 'block';
