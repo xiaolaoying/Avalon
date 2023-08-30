@@ -40,6 +40,7 @@ const io = require('socket.io')(server, {
         });
     },
     cors: {
+        // 不用加吧
         // origin: "https://zlzai.xyz",
         methods: ["GET", "POST"]
     }
@@ -58,10 +59,10 @@ app.use(express.static('public'));
 // players: ['player1', 'player2', ...],
 // roomStatus: ROOM_WAIT ...
 // }, ... }
-let rooms = {}; 
+let rooms = {};
 
 // { 'session.userId': { 'roomNumber': ... }, ... }
-let sessionTrack = {}; 
+let sessionTrack = {};
 
 const ROOM_WAIT = 0; // 游戏还没有开始
 const ROOM_SPEAK = 1; // 发言阶段
@@ -106,6 +107,32 @@ function getRolesByPlayerCount(playerCount) {
     return assignedRoles;
 }
 
+function getNeedPlayerAndfaultTolerant(round, playerNum) {
+    const taskPlayer5 = [0, 2, 3, 2, 3, 3]
+    const taskPlayer6 = [0, 2, 3, 4, 3, 4]
+    const taskPlayer7 = [0, 2, 3, 3, 4, 4]
+    const taskPlayer8 = [0, 3, 4, 4, 5, 5]
+    const fault5 = [false, false, false, false, false, false]
+    const fault6 = [false, false, false, false, false, false]
+    const fault7 = [false, false, false, false, true, false]
+    const fault8 = [false, false, false, false, true, false]
+
+    switch (playerNum) {
+        case 5:
+            return [taskPlayer5[round], fault5[round]];
+        case 6:
+            return [taskPlayer6[round], fault6[round]];
+        case 7:
+            return [taskPlayer7[round], fault7[round]];
+        case 8:
+        case 9:
+        case 10:
+            return [taskPlayer8[round], fault8[round]];
+        default:
+            console.error("Unsupported player count.");
+    }
+}
+
 function shuffleArray(array) {
     // Fisher-Yates (也称为 Knuth) 算法
     for (let i = array.length - 1; i > 0; i--) {
@@ -143,7 +170,6 @@ io.on('connection', (socket) => {
     const req = socket.request;
     console.log(`${socket.id} connected, sessionId=${req.session.userId}`)
     if (req.session.userId != null) {
-        console.log(`apply all event when ${req.session.userId} not online`);
         let track = sessionTrack[req.session.userId];
         if (track != null) {
             const roomNumber = track['roomNumber'];
@@ -153,7 +179,7 @@ io.on('connection', (socket) => {
                 // 查找玩家在房间中的索引
                 playerIndex = rooms[roomNumber].players.findIndex(player => player.session === req.session.userId);
             }
-            
+
             // 如果玩家存在于房间中，说明该玩家为重连，将他标记为在线
             if (playerIndex > -1) {
                 room.players[playerIndex].online = true;
@@ -212,7 +238,9 @@ io.on('connection', (socket) => {
         if (!rooms[roomNumber]) {
             rooms[roomNumber] = {
                 players: [],
-                roomStatus: ROOM_WAIT
+                roomStatus: ROOM_WAIT,
+                round: 0,
+                voteHistory: []
             };
         }
 
@@ -265,7 +293,7 @@ io.on('connection', (socket) => {
         // 让该玩家离开这个socket房间
         socket.leave(roomNumber);
 
-        sessionTrack.delete(req.session.userId)
+        delete sessionTrack[req.session.userId]
 
         // 广播更新后的玩家列表
         eventToRoom(roomNumber, 'updatePlayers', playerNames)
@@ -276,6 +304,7 @@ io.on('connection', (socket) => {
     // 当游戏开始事件被触发时，只发送给特定房间的用户
     socket.on('startGame', (roomNumber) => {
         console.log(`${req.session.userId} start game`);
+        const room = rooms[roomNumber];
         const players = rooms[roomNumber].players;
 
         if (!players || players.length < MIN_PLAYERS) {
@@ -295,6 +324,9 @@ io.on('connection', (socket) => {
             }
             // io.to(player.id).emit('receiveRole', role.name, role.canSeeDesc, getCanSee(role.canSee, shuffledRoles).map(index => players[index].name));
         });
+
+        room.round = 1;
+        room.voteHistory.length = 0;
 
         eventToRoom(roomNumber, 'gameStarted')
         // io.to(roomNumber).emit('gameStarted');
@@ -342,6 +374,8 @@ io.on('connection', (socket) => {
 
         if (!roomNumber) return;
 
+        const room = rooms[roomNumber];
+
         // 初始化这个房间的投票计数（如果还没初始化过）
         if (!openVotes[roomNumber]) {
             openVotes[roomNumber] = {
@@ -354,7 +388,6 @@ io.on('connection', (socket) => {
         }
 
         // 计数玩家的投票
-        // console.log('voteChoice: ' + voteChoice);
         openVotes[roomNumber][voteChoice]++;
         openVotes[roomNumber].totalVotes++;
 
@@ -382,6 +415,23 @@ io.on('connection', (socket) => {
             rooms[roomNumber].detailedResult = detailedResult;
             eventToRoom(roomNumber, 'voteResult', detailedResult)
             //io.to(roomNumber).emit('voteResult', detailedResult);
+
+            if (room.voteHistory.length < room.round) {
+                room.voteHistory.push({
+                    round: room.round,
+                    tasks: []
+                });
+            }
+
+            let currTasks = room.voteHistory[room.voteHistory.length - 1].tasks;
+            let term = currTasks.length + 1;
+            currTasks.push({
+                term: term,
+                taskPlayers: teamMembers[roomNumber],
+                approvePlayers: openVotes[roomNumber].approveNames,
+                againstPlayers: openVotes[roomNumber].opposeNames,
+                failedNum: -1
+            });
 
             if (openVotes[roomNumber].approve > openVotes[roomNumber].oppose) {
                 // 初始化房间的秘密投票数据
@@ -426,11 +476,16 @@ io.on('connection', (socket) => {
             secretVotes[roomNumber].fail++;
         }
 
+        const room = rooms[roomNumber];
         // 如果所有玩家都已经投票
         if (secretVotes[roomNumber].totalVotes === teamMembers[roomNumber].length) {
             let voteOutcome = '有' + secretVotes[roomNumber].fail + '个人投了任务失败';
             eventToRoom(roomNumber, 'secretVoteResult', voteOutcome)
             // io.to(roomNumber).emit('secretVoteResult', voteOutcome);
+
+            let currTasks = room.voteHistory[room.voteHistory.length - 1].tasks;
+            currTasks[currTasks.length - 1].failedNum = secretVotes[roomNumber].fail;
+            room.round++;
 
             // 清除这个房间的秘密投票记录
             delete secretVotes[roomNumber];
@@ -438,8 +493,21 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on("ping", (cb) => {
-        cb("pong");
+    socket.on("getVoteHistory", (cb) => {
+        console.log(`${req.session.userId} get vote history`);
+        var roomNumber = null;
+        try {
+            roomNumber = sessionTrack[req.session.userId]['roomNumber']
+        } catch (e) {
+        }
+        if (roomNumber == null) {
+            return;
+        }
+
+        const room = rooms[roomNumber];
+        const playerNum = room.players.length;
+        let [taskNeedPlayerNum, faultTolerant] = getNeedPlayerAndfaultTolerant(room.round, playerNum);
+        cb(room.round, taskNeedPlayerNum, faultTolerant, room.voteHistory)
     });
 
     socket.on("disconnect", (reason) => {
