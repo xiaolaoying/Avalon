@@ -42,10 +42,11 @@ document.getElementById('leaveRoom').addEventListener('click', () => {
 
 // 当用户点击"开始游戏"按钮时
 document.getElementById('startGame').addEventListener('click', () => {
-    e.preventDefault();
-    e.returnValue = '这将开始一局新的游戏，你确定吗？';
-    const roomNumber = document.getElementById('roomNumberInput').value; // 获取输入的房间名
-    socket.emit('startGame', roomNumber);
+    var result = confirm('这将开始一局新的游戏，你确定吗？');
+    if (result) {
+        const roomNumber = document.getElementById('roomNumberInput').value; // 获取输入的房间名
+        socket.emit('startGame', roomNumber);
+    }
 });
 
 // 当用户点击"确认队伍"按钮时
@@ -153,7 +154,7 @@ function showVoteHistory() {
                     historyTaskInfo.appendChild(failedNum);
                 } else {
                     let failedNum = document.createElement('p');
-                    failedNum.textContent = `有 ${taskHistory.failedNum} 人任务失败，本轮任务 ${taskHistory.taskFailed ? '<span style="color:red">失败</span>' : '<span style="color:green">成功</span>'}`;
+                    failedNum.innerHTML = `有 ${taskHistory.failedNum} 人任务失败，本轮任务 ${taskHistory.taskFailed ? '<span style="color:red">失败</span>' : '<span style="color:green">成功</span>'}`;
                     historyTaskInfo.appendChild(failedNum);
                 }
             });

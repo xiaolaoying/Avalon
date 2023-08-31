@@ -473,6 +473,9 @@ io.on('connection', (socket) => {
 
     socket.on('submitSecretVote', (roomNumber, vote) => {
         console.log(`${req.session.userId} submit secret vote, room=${roomNumber}, vote=${vote}`);
+        if (!secretVotedPlayers[roomNumber]) {
+            secretVotedPlayers[roomNumber] = [];
+        }
         if (!secretVotedPlayers[roomNumber].find(playerSession => playerSession === req.session.userId)) {
             secretVotes[roomNumber].totalVotes++;
             if (vote === 'success') {
