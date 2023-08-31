@@ -433,7 +433,8 @@ io.on('connection', (socket) => {
                 taskPlayers: teamMembers[roomNumber],
                 approvePlayers: openVotes[roomNumber].approveNames,
                 againstPlayers: openVotes[roomNumber].opposeNames,
-                failedNum: -1
+                failedNum: -1,
+                taskFailed: false
             });
 
             if (openVotes[roomNumber].approve > openVotes[roomNumber].oppose) {
@@ -491,6 +492,14 @@ io.on('connection', (socket) => {
 
             let currTasks = room.voteHistory[room.voteHistory.length - 1].tasks;
             currTasks[currTasks.length - 1].failedNum = secretVotes[roomNumber].fail;
+            let [taskNeedPlayerNum, faultTolerant] = getNeedPlayerAndfaultTolerant(room.round, room.players.length);
+            if (faultTolerant && secretVotes[roomNumber].fail <= 1) {
+                currTasks[currTasks.length - 1].taskFailed = false;
+            } else if (secretVotes[roomNumber].fail === 0) {
+                currTasks[currTasks.length - 1].taskFailed = false;
+            } else {
+                currTasks[currTasks.length - 1].taskFailed = true;
+            }
             room.round++;
 
             // 清除这个房间的秘密投票记录

@@ -153,7 +153,7 @@ function showVoteHistory() {
                     historyTaskInfo.appendChild(failedNum);
                 } else {
                     let failedNum = document.createElement('p');
-                    failedNum.textContent = `有 ${taskHistory.failedNum} 人任务失败`;
+                    failedNum.textContent = `有 ${taskHistory.failedNum} 人任务失败，本轮任务 ${taskHistory.taskFailed ? '<span style="color:red">失败</span>' : '<span style="color:green">成功</span>'}`;
                     historyTaskInfo.appendChild(failedNum);
                 }
             });
