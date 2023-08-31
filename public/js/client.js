@@ -42,8 +42,11 @@ document.getElementById('leaveRoom').addEventListener('click', () => {
 
 // 当用户点击"开始游戏"按钮时
 document.getElementById('startGame').addEventListener('click', () => {
-    const roomNumber = document.getElementById('roomNumberInput').value; // 获取输入的房间名
-    socket.emit('startGame', roomNumber);
+    var result = confirm('这将开始一局新的游戏，你确定吗？');
+    if (result) {
+        const roomNumber = document.getElementById('roomNumberInput').value; // 获取输入的房间名
+        socket.emit('startGame', roomNumber);
+    }
 });
 
 // 当用户点击"确认队伍"按钮时
@@ -111,7 +114,53 @@ function updatePlayers(players) {
 socket.on('updatePlayers', (players) => {
     updatePlayers(players);
 });
+function showVoteHistory() {
+    socket.emit("getVoteHistory", (currentRound, taskNeedPlayerNum, faultTolerant, voteHistory) => {
+        // 显示当前游戏进行的轮次
+        const gameRoundInfo = document.getElementById('gameRoundInfo');
+        gameRoundInfo.innerHTML = ''; // 清除现有的身份信息
+        gameRoundInfo.style.display = 'block';
+        const gameRound = document.createElement('p');
+        gameRound.textContent = `当前是第 ${currentRound} 轮，需要 ${taskNeedPlayerNum} 人执行任务，${faultTolerant ? "是容错轮" : "不是容错轮"}`;
+        gameRoundInfo.appendChild(gameRound);
 
+        // 显示历史票型
+        const historyTaskInfo = document.getElementById('historyTaskInfo');
+        historyTaskInfo.innerHTML = ''; // 清除现有的身份信息
+        historyTaskInfo.style.display = 'block';
+
+        voteHistory.forEach((roundHistory) => {
+            let roundHeader = document.createElement('h2');
+            roundHeader.textContent = `第 ${roundHistory.round} 轮`;
+            historyTaskInfo.appendChild(roundHeader);
+
+            roundHistory.tasks.forEach((taskHistory) => {
+                let taskHeader = document.createElement('h3');
+                taskHeader.textContent = `第 ${taskHistory.term} 次发车`;
+                historyTaskInfo.appendChild(taskHeader);
+                let playerInTask = document.createElement('p');
+                playerInTask.textContent = `车上玩家：${taskHistory.taskPlayers.join('、')}`;
+                historyTaskInfo.appendChild(playerInTask);
+                let approvePlayers = document.createElement('p');
+                approvePlayers.textContent = `赞成玩家：${taskHistory.approvePlayers.join('、')}`;
+                historyTaskInfo.appendChild(approvePlayers);
+                let againstPlayers = document.createElement('p');
+                againstPlayers.textContent = `反对玩家：${taskHistory.againstPlayers.join('、')}`;
+                historyTaskInfo.appendChild(againstPlayers);
+
+                if (taskHistory.failedNum == -1) {
+                    let failedNum = document.createElement('p');
+                    failedNum.textContent = `发车失败`;
+                    historyTaskInfo.appendChild(failedNum);
+                } else {
+                    let failedNum = document.createElement('p');
+                    failedNum.innerHTML = `有 ${taskHistory.failedNum} 人任务失败，本轮任务 ${taskHistory.taskFailed ? '<span style="color:red">失败</span>' : '<span style="color:green">成功</span>'}`;
+                    historyTaskInfo.appendChild(failedNum);
+                }
+            });
+        });
+    });
+}
 function setRole(roleName, canSeeDesc, canSeeRoles) {
     const roleInfoDiv = document.getElementById('roleInfo');
     roleInfoDiv.innerHTML = ''; // 清除现有的身份信息
@@ -146,6 +195,7 @@ function gameStart() {
 
 socket.on('gameStarted', () => {
     gameStart();
+    showVoteHistory();
 });
 
 // // 当轮到队长选择玩家组队时
@@ -232,6 +282,7 @@ socket.on('secretVoteResult', result => {
 
         document.getElementById('playerList').style.display = 'block';
         document.getElementById('confirmTeam').style.display = 'inline';
+        showVoteHistory();
     }, 5000);  // 5000毫秒等于5秒
 });
 
@@ -243,6 +294,7 @@ socket.on('nextOpenVote', () => {
 
         document.getElementById('playerList').style.display = 'block';
         document.getElementById('confirmTeam').style.display = 'inline';
+        showVoteHistory();
     }, 5000);  // 5000毫秒等于5秒
 });
 
@@ -298,10 +350,8 @@ socket.on('reconnect', (roomStatus, playerName, roomNumber, args) => {
         if (canSecretVote) {
             beginSecretVote();
         }
-    } 
+    }
+    if (roomStatus != ROOM_WAIT) {
+        showVoteHistory();
+    }
 });
-
-// window.onbeforeunload = function(e) {
-//     e.preventDefault();
-//     e.returnValue = '您确定要离开吗？游戏进度可能会丢失。';
-// };
