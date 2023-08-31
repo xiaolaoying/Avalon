@@ -42,6 +42,8 @@ document.getElementById('leaveRoom').addEventListener('click', () => {
 
 // 当用户点击"开始游戏"按钮时
 document.getElementById('startGame').addEventListener('click', () => {
+    e.preventDefault();
+    e.returnValue = '这将开始一局新的游戏，你确定吗？';
     const roomNumber = document.getElementById('roomNumberInput').value; // 获取输入的房间名
     socket.emit('startGame', roomNumber);
 });
@@ -352,8 +354,3 @@ socket.on('reconnect', (roomStatus, playerName, roomNumber, args) => {
         showVoteHistory();
     }
 });
-
-// window.onbeforeunload = function(e) {
-//     e.preventDefault();
-//     e.returnValue = '您确定要离开吗？游戏进度可能会丢失。';
-// };

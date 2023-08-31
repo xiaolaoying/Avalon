@@ -4,6 +4,7 @@ const http = require('http');
 const r = require('./roles');
 const session = require("express-session");
 const { v4: uuidv4 } = require('uuid');
+const { del } = require('selenium-webdriver/http');
 
 const app = express();
 app.use(cors());
@@ -75,6 +76,7 @@ const teamMembers = {};
 const openVotes = {};
 // 储存秘密投票的数据结构
 const secretVotes = {};
+const secretVotedPlayers = {};
 
 const MIN_PLAYERS = 5;
 
@@ -358,13 +360,12 @@ io.on('connection', (socket) => {
     });
 
     socket.on('openVote', (voteChoice) => {
-        // TODO: 注意刷新后同一个玩家重复投票的问题
         console.log(`${req.session.userId} vete ${voteChoice}`);
         // 获取玩家所在的房间
         let roomNumber;
         let playerName;
         for (const room in rooms) {
-            const player = rooms[room].players.find(player => player.id === socket.id);
+            const player = rooms[room].players.find(player => player.session === req.session.userId);
             if (player) {
                 roomNumber = room;
                 playerName = player.name;
@@ -387,15 +388,17 @@ io.on('connection', (socket) => {
             };
         }
 
-        // 计数玩家的投票
-        openVotes[roomNumber][voteChoice]++;
-        openVotes[roomNumber].totalVotes++;
+        if (!openVotes[roomNumber].approveNames.find(name => name === playerName) && !openVotes[roomNumber].opposeNames.find(name => name === playerName)) {
+            // 计数玩家的投票
+            openVotes[roomNumber][voteChoice]++;
+            openVotes[roomNumber].totalVotes++;
 
-        // 记录投票的玩家的名字
-        if (voteChoice === 'approve') {
-            openVotes[roomNumber].approveNames.push(playerName);
-        } else {
-            openVotes[roomNumber].opposeNames.push(playerName);
+            // 记录投票的玩家的名字
+            if (voteChoice === 'approve') {
+                openVotes[roomNumber].approveNames.push(playerName);
+            } else {
+                openVotes[roomNumber].opposeNames.push(playerName);
+            }
         }
 
         // 如果所有玩家都已经投票
@@ -469,11 +472,14 @@ io.on('connection', (socket) => {
 
     socket.on('submitSecretVote', (roomNumber, vote) => {
         console.log(`${req.session.userId} submit secret vote, room=${roomNumber}, vote=${vote}`);
-        secretVotes[roomNumber].totalVotes++;
-        if (vote === 'success') {
-            secretVotes[roomNumber].success++;
-        } else if (vote === 'fail') {
-            secretVotes[roomNumber].fail++;
+        if (!secretVotedPlayers[roomNumber].find(playerSession => playerSession === req.session.userId)) {
+            secretVotes[roomNumber].totalVotes++;
+            if (vote === 'success') {
+                secretVotes[roomNumber].success++;
+            } else if (vote === 'fail') {
+                secretVotes[roomNumber].fail++;
+            }
+            secretVotedPlayers[roomNumber].push(req.session.userId);
         }
 
         const room = rooms[roomNumber];
@@ -490,6 +496,7 @@ io.on('connection', (socket) => {
             // 清除这个房间的秘密投票记录
             delete secretVotes[roomNumber];
             rooms[roomNumber].roomStatus = ROOM_SPEAK;
+            delete secretVotedPlayers[roomNumber];
         }
     });
 
