@@ -59,7 +59,8 @@ label {
 
 .tutorial-link {
     margin-bottom: 20px;
-    display: block;
+    margin-right: 20px;
+    display: inline-block;
 }
 
 #playerList {
