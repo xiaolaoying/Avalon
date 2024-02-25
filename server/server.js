@@ -1,5 +1,5 @@
 const express = require('express');
-const cors = require('cors');
+// const cors = require('cors');
 const http = require('http');
 const r = require('./roles');
 const session = require("express-session");
@@ -7,14 +7,17 @@ const { v4: uuidv4 } = require('uuid');
 const { del } = require('selenium-webdriver/http');
 
 const app = express();
-app.use(cors());
+// app.use(cors());
 const PORT = 3000;
 const server = http.createServer(app);
 
 const sessionMiddleware = session({
     secret: "smart-wht",
-    resave: true,
-    saveUninitialized: true,
+    resave: false, // 推荐设置为false，除非有特定需求
+    saveUninitialized: false, // 推荐设置为false，以避免存储大量无用的session
+    cookie: {
+        maxAge: 3600000, // 设置cookie的过期时间为1小时
+    },
 });
 
 const io = require('socket.io')(server, {
@@ -40,11 +43,11 @@ const io = require('socket.io')(server, {
             callback(null, true);
         });
     },
-    cors: {
-        // 不用加吧
-        // origin: "https://zlzai.xyz",
-        methods: ["GET", "POST"]
-    }
+    // cors: {
+    //     // 不用加吧
+    //     // origin: "https://zlzai.xyz",
+    //     methods: ["GET", "POST"]
+    // }
 });
 
 // 设置静态文件托管

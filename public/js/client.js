@@ -1,4 +1,5 @@
 const socket = io.connect('https://' + window.location.hostname);
+// const socket = io.connect('http://localhost:3000');  // for local debug
 
 const ROOM_WAIT = 0; // 游戏还没有开始
 const ROOM_SPEAK = 1; // 发言阶段
