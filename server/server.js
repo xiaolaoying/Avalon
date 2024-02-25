@@ -13,8 +13,8 @@ const server = http.createServer(app);
 
 const sessionMiddleware = session({
     secret: "smart-wht",
-    resave: false, // 推荐设置为false，除非有特定需求
-    saveUninitialized: false, // 推荐设置为false，以避免存储大量无用的session
+    resave: true,
+    saveUninitialized: true,
     cookie: {
         maxAge: 3600000, // 设置cookie的过期时间为1小时
     },
